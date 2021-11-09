@@ -6,20 +6,6 @@ import (
 	"strconv"
 )
 
-type schedule struct {
-	node       *node
-	processor  int
-	startTime  int
-	prev       *schedule
-	nodes      int
-	finishTime int
-}
-
-type scheduleStack struct {
-	top   *schedule
-	under *scheduleStack
-}
-
 func max(a, b int) int {
 	if a > b {
 		return a
@@ -29,7 +15,7 @@ func max(a, b int) int {
 }
 
 func findOptimalSchedule(g []*node, processors int) *schedule {
-	// Schedule the first node on processor 1
+	// Schedule the first node on processor 0
 	seed := &schedule{
 		node:       g[0],
 		processor:  0,
@@ -39,17 +25,16 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 	}
 
 	var best *schedule = nil
-
 	stack := &scheduleStack{
 		top:   seed,
 		under: nil,
 	}
 
 	for stack != nil {
-		// Pop from stack
-		n := stack.top
-		stack = stack.under
+		var n *schedule
+		stack, n = stack.pop()
 
+		// When we find a complete schedule
 		if n.nodes == len(g) {
 			if best == nil || n.finishTime < best.finishTime {
 				best = n
@@ -61,14 +46,14 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 		earliestStart := make([]int, processors)
 
 		// Walk schedules to get nodes scheduled
-		sched := n
-		for sched != nil {
+		for sched := n; sched != nil; sched = sched.prev {
 			scheduled[sched.node.index] = sched
-			earliestStart[sched.processor] = max(sched.finishTime, earliestStart[sched.processor])
-			sched = sched.prev
+
+			if (earliestStart[sched.processor]) == 0 {
+				earliestStart[sched.processor] = sched.finishTime
+			}
 		}
 
-		// For all unscheduled
 		for index, s := range g {
 			if scheduled[index] != nil {
 				continue
@@ -86,8 +71,10 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 				continue
 			}
 
+			// If we can schedule, try different processors
 			encounteredEmpty := false
 			for i := 0; i < processors; i++ {
+				// Two empty processors means we can skip
 				empty := earliestStart[i] == 0
 				if encounteredEmpty && empty {
 					break
@@ -109,18 +96,15 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 				start := max(earliestStart[i], satisfiedAt)
 				finish := max(n.finishTime, start+s.weight)
 
-				if best == nil || finish < best.finishTime {
-					stack = &scheduleStack{
-						top: &schedule{
-							node:       s,
-							processor:  i,
-							startTime:  start,
-							prev:       n,
-							nodes:      n.nodes + 1,
-							finishTime: finish,
-						},
-						under: stack,
-					}
+				if best == nil || finish+s.criticalPath < best.finishTime {
+					stack = stack.push(&schedule{
+						node:       s,
+						processor:  i,
+						startTime:  start,
+						prev:       n,
+						nodes:      n.nodes + 1,
+						finishTime: finish,
+					})
 				}
 			}
 		}
