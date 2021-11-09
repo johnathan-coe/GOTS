@@ -1,18 +1,13 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
-
-	"github.com/goccy/go-graphviz"
-	"github.com/goccy/go-graphviz/cgraph"
-	"github.com/oleiade/lane"
 )
 
 type schedule struct {
-	node       *cgraph.Node
+	node       *node
 	processor  int
 	startTime  int
 	prev       *schedule
@@ -20,37 +15,12 @@ type schedule struct {
 	finishTime int
 }
 
-func nodeID(n *cgraph.Node) int {
-	id, err := strconv.Atoi(n.Name())
-
-	if err != nil {
-		log.Fatal("Node name invalid!")
-	}
-
-	return id
+type scheduleStack struct {
+	top   *schedule
+	under *scheduleStack
 }
 
-func edgeWeight(e *cgraph.Edge) int {
-	weight, err := strconv.Atoi(e.Get("Weight"))
-
-	if err != nil {
-		log.Fatal("Cannot get weight for edge")
-	}
-
-	return weight
-}
-
-func nodeWeight(e *cgraph.Node) int {
-	weight, err := strconv.Atoi(e.Get("Weight"))
-
-	if err != nil {
-		log.Fatal("Cannot get weight for node")
-	}
-
-	return weight
-}
-
-func Max(a, b int) int {
+func max(a, b int) int {
 	if a > b {
 		return a
 	}
@@ -58,51 +28,55 @@ func Max(a, b int) int {
 	return b
 }
 
-func findOptimalSchedule(g *cgraph.Graph, processors int) *schedule {
-	scheduleStack := lane.NewStack()
-
+func findOptimalSchedule(g []*node, processors int) *schedule {
 	// Schedule the first node on processor 1
-	seed := schedule{
-		node:       g.FirstNode(),
+	seed := &schedule{
+		node:       g[0],
 		processor:  0,
 		startTime:  0,
 		nodes:      1,
-		finishTime: nodeWeight(g.FirstNode()),
+		finishTime: g[0].weight,
 	}
-	scheduleStack.Push(&seed)
 
 	var best *schedule = nil
 
-	for !scheduleStack.Empty() {
-		n := scheduleStack.Pop().(*schedule)
+	stack := &scheduleStack{
+		top:   seed,
+		under: nil,
+	}
 
-		if n.nodes == g.NumberNodes() {
+	for stack != nil {
+		// Pop from stack
+		n := stack.top
+		stack = stack.under
+
+		if n.nodes == len(g) {
 			if best == nil || n.finishTime < best.finishTime {
 				best = n
 			}
 		}
 
 		// Nodes and the point in the schedule they were introduced at
-		scheduled := make([]*schedule, g.NumberNodes())
+		scheduled := make([]*schedule, len(g))
 		earliestStart := make([]int, processors)
 
 		// Walk schedules to get nodes scheduled
 		sched := n
 		for sched != nil {
-			scheduled[nodeID(sched.node)] = sched
-			earliestStart[sched.processor] = Max(sched.finishTime, earliestStart[sched.processor])
+			scheduled[sched.node.index] = sched
+			earliestStart[sched.processor] = max(sched.finishTime, earliestStart[sched.processor])
 			sched = sched.prev
 		}
 
 		// For all unscheduled
-		for s := g.FirstNode(); s != nil; s = g.NextNode(s) {
-			if scheduled[nodeID(s)] != nil {
+		for index, s := range g {
+			if scheduled[index] != nil {
 				continue
 			}
 
 			depsSatisfied := true
-			for dep := g.FirstIn(s); dep != nil; dep = g.NextIn(dep) {
-				if scheduled[nodeID(dep.Node())] == nil {
+			for _, dep := range s.inEdges {
+				if scheduled[dep.other.index] == nil {
 					depsSatisfied = false
 					break
 				}
@@ -112,29 +86,42 @@ func findOptimalSchedule(g *cgraph.Graph, processors int) *schedule {
 				continue
 			}
 
+			encounteredEmpty := false
 			for i := 0; i < processors; i++ {
+				empty := earliestStart[i] == 0
+				if encounteredEmpty && empty {
+					break
+				}
+
+				encounteredEmpty = empty || encounteredEmpty
+
 				// Get the time all our dependencies are satisfied at
 				satisfiedAt := 0
-				for dep := g.FirstIn(s); dep != nil; dep = g.NextIn(dep) {
-					pre := scheduled[nodeID(dep.Node())]
+				for _, dep := range s.inEdges {
+					pre := scheduled[dep.other.index]
 
 					if pre.processor != i {
-						end := pre.startTime + nodeWeight(pre.node) + edgeWeight(dep)
-						satisfiedAt = Max(satisfiedAt, end)
+						end := pre.startTime + pre.node.weight + dep.weight
+						satisfiedAt = max(satisfiedAt, end)
 					}
 				}
 
-				start := Max(earliestStart[i], satisfiedAt)
+				start := max(earliestStart[i], satisfiedAt)
+				finish := max(n.finishTime, start+s.weight)
 
-				// Add new schedule to the stack
-				scheduleStack.Push(&schedule{
-					node:       s,
-					processor:  i,
-					startTime:  start,
-					prev:       n,
-					nodes:      n.nodes + 1,
-					finishTime: Max(n.finishTime, start+nodeWeight(s)),
-				})
+				if best == nil || finish < best.finishTime {
+					stack = &scheduleStack{
+						top: &schedule{
+							node:       s,
+							processor:  i,
+							startTime:  start,
+							prev:       n,
+							nodes:      n.nodes + 1,
+							finishTime: finish,
+						},
+						under: stack,
+					}
+				}
 			}
 		}
 	}
@@ -151,22 +138,15 @@ func main() {
 		log.Fatal("Failed to parse processor number")
 	}
 
-	// Read graph from file
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Fatal(err)
-	}
+	nodes := parseGraph(path)
+	s := findOptimalSchedule(nodes, processors)
 
-	// Parse graph
-	graph, err := graphviz.ParseBytes(b)
-
-	s := findOptimalSchedule(graph, processors)
 	println(s.finishTime)
 
 	// Walk schedules to get nodes scheduled
 	sched := s
 	for sched != nil {
-		println(sched.node.Name(), sched.startTime, sched.processor)
+		println(sched.node.name, sched.startTime, sched.processor)
 		sched = sched.prev
 	}
 }
