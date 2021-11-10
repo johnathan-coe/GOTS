@@ -36,21 +36,17 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 			continue
 		}
 
-		walk := &partialWalk{
-			next:       n,
-			scheduled:  make([]*schedule, len(g)),
-			lastOnProc: make([]*schedule, processors),
-			procEnd:    make([]int, processors),
-		}
+		// Make a new walk for this schedule "lazy loading"
+		walk := NewWalk(n, numNodes, processors)
 
 		for index, s := range g {
-			if walk.walkTillIndex(index) != nil {
+			if walk.scheduleForIndex(index) != nil {
 				continue
 			}
 
 			depsSatisfied := true
 			for _, dep := range s.inEdges {
-				if walk.walkTillIndex(dep.other.index) == nil {
+				if walk.scheduleForIndex(dep.other.index) == nil {
 					depsSatisfied = false
 					break
 				}
@@ -61,14 +57,17 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 			}
 
 			// Resolve other processors till we hit one with no nodes
-			validProcessors := 1
-			for ; validProcessors < processors; validProcessors++ {
-				if walk.walkTillProc(validProcessors-1) == nil {
+			validProcessors := processors
+			for i := 0; i < processors; i++ {
+				if walk.lastOnProc(i) == nil {
+					validProcessors = i + 1
 					break
 				}
 			}
 
-			satisfiedAt := walk.procEnd
+			// The processors we care about are resolved
+			satisfiedAt := make([]int, validProcessors)
+			copy(satisfiedAt, walk.procEnd)
 
 			// We've already walked deps
 			for _, dep := range s.inEdges {
@@ -119,6 +118,7 @@ func main() {
 	processors, _ := strconv.Atoi(os.Args[2])
 
 	nodes := parseGraph(path)
+
 	s := FindOptimalSchedule(nodes, processors)
 	println(s.schedFinishTime)
 

@@ -14,14 +14,24 @@ type scheduleStack struct {
 	under *scheduleStack
 }
 
-type partialWalk struct {
-	next       *schedule
-	scheduled  []*schedule
-	lastOnProc []*schedule
-	procEnd    []int
+type Walk struct {
+	next      *schedule
+	scheduled []*schedule
+	last      []*schedule
+	procEnd   []int
 }
 
-func (walk *partialWalk) walk() {
+func NewWalk(s *schedule, nodes, processors int) Walk {
+	return Walk{
+		next:      s,
+		scheduled: make([]*schedule, nodes),
+		last:      make([]*schedule, processors),
+		procEnd:   make([]int, processors),
+	}
+}
+
+// Walk one step
+func (walk *Walk) walk() {
 	sched := walk.next
 
 	if sched == nil {
@@ -29,23 +39,23 @@ func (walk *partialWalk) walk() {
 	}
 
 	walk.scheduled[sched.node.index] = sched
-	if (walk.lastOnProc[sched.processor]) == nil {
-		walk.lastOnProc[sched.processor] = sched
+	if (walk.last[sched.processor]) == nil {
+		walk.last[sched.processor] = sched
 		walk.procEnd[sched.processor] = sched.startTime + sched.node.weight
 	}
 
 	walk.next = sched.prev
 }
 
-func (walk *partialWalk) walkTillProc(p int) *schedule {
-	for walk.lastOnProc[p] == nil && walk.next != nil {
+func (walk *Walk) lastOnProc(p int) *schedule {
+	for walk.last[p] == nil && walk.next != nil {
 		walk.walk()
 	}
 
-	return walk.lastOnProc[p]
+	return walk.last[p]
 }
 
-func (walk *partialWalk) walkTillIndex(i int) *schedule {
+func (walk *Walk) scheduleForIndex(i int) *schedule {
 	for walk.scheduled[i] == nil && walk.next != nil {
 		walk.walk()
 	}
