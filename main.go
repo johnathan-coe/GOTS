@@ -5,7 +5,14 @@ import (
 	"strconv"
 )
 
+func prune() bool {
+
+	return false
+}
+
 func findOptimalSchedule(g []*node, processors int) *schedule {
+	numNodes := len(g)
+
 	// Schedule the first node on processor 0
 	seed := &schedule{
 		node:            g[0],
@@ -15,21 +22,19 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 		schedFinishTime: g[0].weight,
 	}
 
-	var best *schedule = nil
 	stack := &scheduleStack{
 		top:   seed,
 		under: nil,
 	}
 
+	var best *schedule = nil
 	for stack != nil {
 		var n *schedule
 		stack, n = stack.pop()
 
-		// When we find a complete schedule
-		if n.nodes == len(g) {
-			if best == nil || n.schedFinishTime < best.schedFinishTime {
-				best = n
-			}
+		// Ensure it is still a candidate for an optimal schedule
+		if best != nil && n.schedFinishTime+n.node.criticalPath >= best.schedFinishTime {
+			continue
 		}
 
 		// Nodes and the point in the schedule they were introduced at
@@ -82,17 +87,27 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 
 			for i := 0; i < validProcessors; i++ {
 				start := satisfiedAt[i]
-				finish := max(n.schedFinishTime, start+s.weight)
+				schedFinish := max(n.schedFinishTime, start+s.weight)
 
-				if best == nil || finish+s.criticalPath < best.schedFinishTime {
-					stack = stack.push(&schedule{
+				// This is an optimal candidate
+				if best == nil || schedFinish+s.criticalPath < best.schedFinishTime {
+					nodes := n.nodes + 1
+
+					newSched := &schedule{
 						node:            s,
 						processor:       i,
 						startTime:       start,
 						prev:            n,
-						nodes:           n.nodes + 1,
-						schedFinishTime: finish,
-					})
+						nodes:           nodes,
+						schedFinishTime: schedFinish,
+					}
+
+					// It is complete
+					if nodes == numNodes {
+						best = newSched
+					} else {
+						stack = stack.push(newSched)
+					}
 				}
 			}
 		}
