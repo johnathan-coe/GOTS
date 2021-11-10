@@ -1,12 +1,12 @@
 package main
 
 type schedule struct {
-	node       *node
-	processor  int
-	startTime  int
-	prev       *schedule
-	nodes      int
-	finishTime int
+	node            *node
+	processor       int
+	startTime       int
+	prev            *schedule
+	nodes           int
+	schedFinishTime int
 }
 
 type scheduleStack struct {

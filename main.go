@@ -8,11 +8,11 @@ import (
 func findOptimalSchedule(g []*node, processors int) *schedule {
 	// Schedule the first node on processor 0
 	seed := &schedule{
-		node:       g[0],
-		processor:  0,
-		startTime:  0,
-		nodes:      1,
-		finishTime: g[0].weight,
+		node:            g[0],
+		processor:       0,
+		startTime:       0,
+		nodes:           1,
+		schedFinishTime: g[0].weight,
 	}
 
 	var best *schedule = nil
@@ -27,7 +27,7 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 
 		// When we find a complete schedule
 		if n.nodes == len(g) {
-			if best == nil || n.finishTime < best.finishTime {
+			if best == nil || n.schedFinishTime < best.schedFinishTime {
 				best = n
 			}
 		}
@@ -82,16 +82,16 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 
 			for i := 0; i < validProcessors; i++ {
 				start := satisfiedAt[i]
-				finish := max(n.finishTime, start+s.weight)
+				finish := max(n.schedFinishTime, start+s.weight)
 
-				if best == nil || finish+s.criticalPath < best.finishTime {
+				if best == nil || finish+s.criticalPath < best.schedFinishTime {
 					stack = stack.push(&schedule{
-						node:       s,
-						processor:  i,
-						startTime:  start,
-						prev:       n,
-						nodes:      n.nodes + 1,
-						finishTime: finish,
+						node:            s,
+						processor:       i,
+						startTime:       start,
+						prev:            n,
+						nodes:           n.nodes + 1,
+						schedFinishTime: finish,
 					})
 				}
 			}
@@ -108,7 +108,7 @@ func main() {
 
 	nodes := parseGraph(path)
 	s := findOptimalSchedule(nodes, processors)
-	println(s.finishTime)
+	println(s.schedFinishTime)
 
 	// Walk schedules to get nodes scheduled
 	sched := s
