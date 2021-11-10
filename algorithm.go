@@ -16,12 +16,12 @@ func prune(s *schedule, precededByPrev bool) bool {
 }
 
 func FindOptimalSchedule(g *graph, processors int) *schedule {
-	var stack *linkedScheduleStack
+	var stack sliceScheduleStack
 
 	// Add all nodes with no dependencies
 	for _, node := range g.nodes {
 		if len(node.inEdges) == 0 {
-			stack = stack.push(
+			stack.push(
 				&schedule{
 					node:            node,
 					processor:       0,
@@ -36,11 +36,11 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 
 	i := 0
 	var best *schedule = nil
-	for stack != nil {
+	for len(stack) != 0 {
 		i++
 
 		var n *schedule
-		stack, n = stack.pop()
+		n = stack.pop()
 
 		// Ensure it is still a candidate for an optimal schedule
 		if best != nil && n.schedFinishTime+n.node.criticalPath >= best.schedFinishTime {
@@ -114,7 +114,7 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 						best = newSched
 					} else {
 						if !prune(newSched, n.node.goesTo[s.index]) {
-							stack = stack.push(newSched)
+							stack.push(newSched)
 						}
 					}
 				}

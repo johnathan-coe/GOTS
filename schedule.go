@@ -9,20 +9,17 @@ type schedule struct {
 	schedFinishTime int
 }
 
-type linkedScheduleStack struct {
-	top   *schedule
-	under *linkedScheduleStack
+type sliceScheduleStack []*schedule
+
+func (stack *sliceScheduleStack) push(s *schedule) {
+	*stack = append(*stack, s)
 }
 
-func (stack *linkedScheduleStack) pop() (*linkedScheduleStack, *schedule) {
-	return stack.under, stack.top
-}
-
-func (stack *linkedScheduleStack) push(item *schedule) *linkedScheduleStack {
-	return &linkedScheduleStack{
-		top:   item,
-		under: stack,
-	}
+func (stack *sliceScheduleStack) pop() *schedule {
+	index := len(*stack) - 1
+	element := (*stack)[index]
+	*stack = (*stack)[:index]
+	return element
 }
 
 type Walk struct {
