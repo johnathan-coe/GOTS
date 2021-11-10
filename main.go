@@ -36,32 +36,21 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 			continue
 		}
 
-		// Nodes and the point in the schedule they were introduced at
-		scheduled := make([]*schedule, len(g))
-		finishTime := make([]int, processors)
-		maxProc := 0
-
-		// Walk schedules to get nodes scheduled
-		for sched := n; sched != nil; sched = sched.prev {
-			scheduled[sched.node.index] = sched
-
-			if (finishTime[sched.processor]) == 0 {
-				finishTime[sched.processor] = sched.startTime + sched.node.weight
-				maxProc = max(maxProc, sched.processor)
-			}
+		walk := &partialWalk{
+			next:       n,
+			scheduled:  make([]*schedule, len(g)),
+			lastOnProc: make([]*schedule, processors),
+			procEnd:    make([]int, processors),
 		}
 
-		// Range of processors that we can schedule a new task on
-		validProcessors := min(maxProc+2, processors)
-
 		for index, s := range g {
-			if scheduled[index] != nil {
+			if walk.walkTillIndex(index) != nil {
 				continue
 			}
 
 			depsSatisfied := true
 			for _, dep := range s.inEdges {
-				if scheduled[dep.other.index] == nil {
+				if walk.walkTillIndex(dep.other.index) == nil {
 					depsSatisfied = false
 					break
 				}
@@ -71,10 +60,19 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 				continue
 			}
 
-			satisfiedAt := finishTime
+			// Resolve other processors till we hit one with no nodes
+			validProcessors := 1
+			for ; validProcessors < processors; validProcessors++ {
+				if walk.walkTillProc(validProcessors-1) == nil {
+					break
+				}
+			}
 
+			satisfiedAt := walk.procEnd
+
+			// We've already walked deps
 			for _, dep := range s.inEdges {
-				depNode := scheduled[dep.other.index]
+				depNode := walk.scheduled[dep.other.index]
 				afterComms := depNode.startTime + depNode.node.weight + dep.weight
 
 				for i := 0; i < validProcessors; i++ {
