@@ -2,7 +2,10 @@ package main
 
 import "testing"
 
-func Benchmark11Node4Proc(b *testing.B) {
-	g := parseGraph("graphs/Nodes_11_OutTree.dot")
-	findOptimalSchedule(g, 4)
+func BenchmarkFindOptimalSchedule(b *testing.B) {
+	g := parseGraph("graphs/16Nodes4Processors.dot")
+
+	for i := 0; i < b.N; i++ {
+		FindOptimalSchedule(g, 4)
+	}
 }

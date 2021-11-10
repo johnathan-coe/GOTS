@@ -5,12 +5,11 @@ import (
 	"strconv"
 )
 
-func prune() bool {
-
-	return false
+func prune(s *schedule, precededByPrev bool) bool {
+	return !precededByPrev && s.processor < s.prev.processor
 }
 
-func findOptimalSchedule(g []*node, processors int) *schedule {
+func FindOptimalSchedule(g []*node, processors int) *schedule {
 	numNodes := len(g)
 
 	// Schedule the first node on processor 0
@@ -91,22 +90,22 @@ func findOptimalSchedule(g []*node, processors int) *schedule {
 
 				// This is an optimal candidate
 				if best == nil || schedFinish+s.criticalPath < best.schedFinishTime {
-					nodes := n.nodes + 1
-
 					newSched := &schedule{
 						node:            s,
 						processor:       i,
 						startTime:       start,
 						prev:            n,
-						nodes:           nodes,
+						nodes:           n.nodes + 1,
 						schedFinishTime: schedFinish,
 					}
 
 					// It is complete
-					if nodes == numNodes {
+					if newSched.nodes == numNodes {
 						best = newSched
 					} else {
-						stack = stack.push(newSched)
+						if !prune(newSched, n.node.goesTo[s.index]) {
+							stack = stack.push(newSched)
+						}
 					}
 				}
 			}
@@ -122,7 +121,7 @@ func main() {
 	processors, _ := strconv.Atoi(os.Args[2])
 
 	nodes := parseGraph(path)
-	s := findOptimalSchedule(nodes, processors)
+	s := FindOptimalSchedule(nodes, processors)
 	println(s.schedFinishTime)
 
 	// Walk schedules to get nodes scheduled

@@ -13,12 +13,15 @@ type edge struct {
 }
 
 type node struct {
-	index        int
-	name         string
-	weight       int
-	inEdges      []edge
-	outEdges     []edge
+	index    int
+	name     string
+	weight   int
+	inEdges  []edge
+	outEdges []edge
+	// Heuristics
 	criticalPath int
+	order        int
+	goesTo       []bool
 }
 
 func (n *node) calculateCriticalPath() int {
@@ -29,6 +32,40 @@ func (n *node) calculateCriticalPath() int {
 	}
 
 	return n.criticalPath
+}
+
+func markOrder(g []*node) {
+	readyQueue := make([]*node, 0)
+	in := make([]int, len(g))
+
+	for _, n := range g {
+		incoming := len(n.inEdges)
+
+		if incoming == 0 {
+			readyQueue = append(readyQueue, n)
+		}
+
+		in[n.index] = incoming
+	}
+
+	order := 0
+	for len(readyQueue) > 0 {
+		ready := readyQueue[0]
+		readyQueue = readyQueue[1:]
+
+		ready.order = order
+		order++
+
+		for _, e := range ready.outEdges {
+			child := e.other
+
+			in[child.index]--
+
+			if in[child.index] == 0 {
+				readyQueue = append(readyQueue, child)
+			}
+		}
+	}
 }
 
 // Parse a graph from a .dot file
@@ -90,7 +127,15 @@ func parseGraph(path string) []*node {
 
 	for _, n := range nodes {
 		n.calculateCriticalPath()
+
+		// Bitfield of outgoing edges from this node
+		n.goesTo = make([]bool, len(nodes))
+		for _, out := range n.outEdges {
+			n.goesTo[out.other.index] = true
+		}
 	}
+
+	markOrder(nodes)
 
 	return nodes
 }
