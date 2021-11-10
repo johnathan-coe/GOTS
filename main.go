@@ -9,16 +9,14 @@ func prune(s *schedule, precededByPrev bool) bool {
 	return !precededByPrev && s.processor < s.prev.processor
 }
 
-func FindOptimalSchedule(g []*node, processors int) *schedule {
-	numNodes := len(g)
-
+func FindOptimalSchedule(g *graph, processors int) *schedule {
 	// Schedule the first node on processor 0
 	seed := &schedule{
-		node:            g[0],
+		node:            g.nodes[0],
 		processor:       0,
 		startTime:       0,
 		nodes:           1,
-		schedFinishTime: g[0].weight,
+		schedFinishTime: g.nodes[0].weight,
 	}
 
 	stack := &scheduleStack{
@@ -37,9 +35,9 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 		}
 
 		// Make a new walk for this schedule "lazy loading"
-		walk := NewWalk(n, numNodes, processors)
+		walk := NewWalk(n, g.numNodes, processors)
 
-		for index, s := range g {
+		for index, s := range g.nodes {
 			if walk.scheduleForIndex(index) != nil {
 				continue
 			}
@@ -76,7 +74,9 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 
 				for i := 0; i < validProcessors; i++ {
 					if i != depNode.processor {
-						satisfiedAt[i] = max(satisfiedAt[i], afterComms)
+						if afterComms > satisfiedAt[i] {
+							satisfiedAt[i] = afterComms
+						}
 					}
 				}
 			}
@@ -97,7 +97,7 @@ func FindOptimalSchedule(g []*node, processors int) *schedule {
 					}
 
 					// It is complete
-					if newSched.nodes == numNodes {
+					if newSched.nodes == g.numNodes {
 						best = newSched
 					} else {
 						if !prune(newSched, n.node.goesTo[s.index]) {

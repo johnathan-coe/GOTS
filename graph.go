@@ -7,6 +7,12 @@ import (
 	"github.com/goccy/go-graphviz"
 )
 
+type graph struct {
+	numNodes int
+	nodes    []*node
+	nodeMap  map[string]*node
+}
+
 type edge struct {
 	weight int
 	other  *node
@@ -69,7 +75,7 @@ func markOrder(g []*node) {
 }
 
 // Parse a graph from a .dot file
-func parseGraph(path string) []*node {
+func parseGraph(path string) *graph {
 	b, _ := ioutil.ReadFile(path)
 	g, _ := graphviz.ParseBytes(b)
 
@@ -137,5 +143,9 @@ func parseGraph(path string) []*node {
 
 	markOrder(nodes)
 
-	return nodes
+	return &graph{
+		numNodes: len(nodes),
+		nodes:    nodes,
+		nodeMap:  nodeMap,
+	}
 }
