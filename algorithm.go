@@ -32,8 +32,13 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 		}
 	}
 
+	satisfiedAt := make([]int, processors)
+
+	i := 0
 	var best *schedule = nil
 	for stack != nil {
+		i++
+
 		var n *schedule
 		stack, n = stack.pop()
 
@@ -66,14 +71,14 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 			validProcessors := processors
 			for i := 0; i < processors; i++ {
 				if walk.lastOnProc(i) == nil {
+					satisfiedAt[i] = 0
 					validProcessors = i + 1
 					break
 				}
-			}
 
-			// The processors we care about are resolved
-			satisfiedAt := make([]int, validProcessors)
-			copy(satisfiedAt, walk.procEnd)
+				lastSched := walk.last[i]
+				satisfiedAt[i] = lastSched.startTime + lastSched.node.weight
+			}
 
 			// We've already walked deps
 			for _, dep := range s.inEdges {
@@ -116,6 +121,8 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 			}
 		}
 	}
+
+	println("Schedules Expanded:", i)
 
 	return best
 }

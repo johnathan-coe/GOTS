@@ -18,7 +18,6 @@ type Walk struct {
 	next      *schedule
 	scheduled []*schedule
 	last      []*schedule
-	procEnd   []int
 }
 
 func NewWalk(s *schedule, nodes, processors int) Walk {
@@ -26,13 +25,13 @@ func NewWalk(s *schedule, nodes, processors int) Walk {
 		next:      s,
 		scheduled: make([]*schedule, nodes),
 		last:      make([]*schedule, processors),
-		procEnd:   make([]int, processors),
 	}
 }
 
 // Walk one step
 func (walk *Walk) walk() {
 	sched := walk.next
+	walk.next = sched.prev
 
 	if sched == nil {
 		return
@@ -41,10 +40,7 @@ func (walk *Walk) walk() {
 	walk.scheduled[sched.node.index] = sched
 	if (walk.last[sched.processor]) == nil {
 		walk.last[sched.processor] = sched
-		walk.procEnd[sched.processor] = sched.startTime + sched.node.weight
 	}
-
-	walk.next = sched.prev
 }
 
 func (walk *Walk) lastOnProc(p int) *schedule {
