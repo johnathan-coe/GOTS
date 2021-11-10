@@ -1,17 +1,15 @@
 package main
 
 func prune(s *schedule, precededByPrev bool) bool {
-	// This is most of our pruning
-	if !precededByPrev && s.processor < s.prev.processor {
-		return true
-	}
+	if !precededByPrev {
+		// This is most of our pruning
+		if s.processor < s.prev.processor {
+			return true
+		}
 
-	if !precededByPrev && s.processor == s.prev.processor && s.node.order < s.prev.node.order {
-		return true
-	}
-
-	if s.processor != 0 && s.startTime == 0 && s.node.order < s.prev.node.order {
-		return true
+		if s.processor == s.prev.processor && s.node.order < s.prev.node.order {
+			return true
+		}
 	}
 
 	return false
