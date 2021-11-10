@@ -16,7 +16,7 @@ func prune(s *schedule, precededByPrev bool) bool {
 }
 
 func FindOptimalSchedule(g *graph, processors int) *schedule {
-	var stack *scheduleStack
+	var stack *linkedScheduleStack
 
 	// Add all nodes with no dependencies
 	for _, node := range g.nodes {
