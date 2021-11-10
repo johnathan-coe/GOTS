@@ -34,11 +34,8 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 
 	satisfiedAt := make([]int, processors)
 
-	i := 0
 	var best *schedule = nil
 	for len(stack) != 0 {
-		i++
-
 		var n *schedule
 		n = stack.pop()
 
@@ -121,8 +118,6 @@ func FindOptimalSchedule(g *graph, processors int) *schedule {
 			}
 		}
 	}
-
-	println("Schedules Expanded:", i)
 
 	return best
 }

@@ -39,11 +39,11 @@ func NewWalk(s *schedule, nodes, processors int) Walk {
 // Walk one step
 func (walk *Walk) walk() {
 	sched := walk.next
-	walk.next = sched.prev
-
 	if sched == nil {
 		return
 	}
+
+	walk.next = sched.prev
 
 	walk.scheduled[sched.node.index] = sched
 	if (walk.last[sched.processor]) == nil {
